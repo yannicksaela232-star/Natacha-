@@ -7,43 +7,44 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - name: Preparar Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.4'
 
-      - name: Extrair o projeto da app
+      - name: Extrair o projeto
         run: |
           mkdir -p VIPUssd
           unzip -o vipussd-chatgpt-app-v31.zip -d VIPUssd
 
-      - name: Compilar o APK
-        working-directory: VIPUssd
-        shell: bash
+      - name: Encontrar a pasta Android
         run: |
-          set -o pipefail
-          gradle assembleDebug --no-daemon 2>&1 | tee build.log
+          PROJECT_DIR=$(find VIPUssd -name settings.gradle -o -name settings.gradle.kts | head -1)
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERRO: settings.gradle não encontrado!"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$PROJECT_DIR")" >> $GITHUB_ENV
 
-      - name: Guardar o log do erro
-        if: always()
-        working-directory: VIPUssd
-        run: cp build.log ../build-log.txt || true
+      - name: Compilar APK
+        run: |
+          cd "$PROJECT_DIR"
+          gradle assembleDebug --no-daemon
 
-      - uses: actions/upload-artifact@v4
-        if: always()
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
         with:
-          name: build-log
-          path: build-log.txt
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: vip-ussd-apk
-          path: VIPUssd/app/build/outputs/apk/debug/app-debug.apk
-          
+          name: VIPUssd-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
