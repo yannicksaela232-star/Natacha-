@@ -10,14 +10,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verificar o zip na raiz
-        run: |
-          if [ ! -f vipussd-chatgpt-app-v30.zip ]; then
-            echo "ERRO: o vipussd-chatgpt-app-v30.zip não está na raiz do repositório."
-            exit 1
-          fi
-          echo "Zip encontrado: $(ls -la vipussd-chatgpt-app-v30.zip)"
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -30,32 +22,28 @@ jobs:
       - name: Extrair o projeto da app
         run: |
           mkdir -p VIPUssd
-          unzip -o vipussd-chatgpt-app-v30.zip -d VIPUssd
-          test -f VIPUssd/settings.gradle && echo "settings.gradle OK" || (echo "ERRO: settings.gradle em falta" && exit 1)
+          unzip -o vipussd-chatgpt-app-v31.zip -d VIPUssd
 
       - name: Compilar o APK
         working-directory: VIPUssd
         shell: bash
         run: |
           set -o pipefail
-          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
+          gradle assembleDebug --no-daemon 2>&1 | tee build.log
 
-      - name: Resumo dos erros
+      - name: Guardar o log do erro
         if: always()
         working-directory: VIPUssd
-        run: |
-          grep -E "error:|What went wrong|FAILURE|Could not|not found|Unresolved|cannot find" -A4 build.log > ../erros-resumo.txt || echo "Sem erros marcados." > ../erros-resumo.txt
-          cp build.log ../build-log.txt || true
+        run: cp build.log ../build-log.txt || true
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: build-log
-          path: |
-            build-log.txt
-            erros-resumo.txt
+          path: build-log.txt
 
       - uses: actions/upload-artifact@v4
         with:
           name: vip-ussd-apk
           path: VIPUssd/app/build/outputs/apk/debug/app-debug.apk
+          
